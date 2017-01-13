@@ -1,0 +1,7 @@
+export MODE=consumer
+export GENERATOR_NAME=gen-001
+export GENERATOR_PING_INTERVAL=10
+export INTERVAL_MS=500
+export REDIS_URL=redis://127.0.0.1:6379
+export REDIS_QUEUE=a
+export MAX_GOROUTINES=1000
