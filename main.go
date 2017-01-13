@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"runtime"
-	"strconv"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
@@ -26,50 +24,36 @@ func main() {
 	runtime.GOMAXPROCS(1)
 
 	//Redis queue which contains tasks
-	redisQueue := os.Getenv("REDIS_QUEUE")
+	cfg := ReadConfig()
 	done := make(chan struct{})
 	taskChan := make(chan Message)
 	taskDone := make(chan finishedTask)
 
-	interval, err := strconv.Atoi(os.Getenv("INTERVAL_MS"))
-	if err != nil {
-		log.Println("invalid interval value: ", err, ": using default")
-		interval = 500
-	}
-
-	redisConn, err := redis.DialURL(os.Getenv("REDIS_URL"))
+	redisConn, err := redis.DialURL(cfg.redis.url)
 	PanicIf(err)
 	defer redisConn.Close()
 
-	mode := os.Getenv("MODE")
-	switch mode {
+	switch cfg.mode {
 
 	//RUN GENERATOR
 	case MODE_GENERATOR:
-		name := os.Getenv("GENERATOR_NAME")
-		multi := os.Getenv("MULTIGEN") != ""
 
-		g := NewGen(redisConn, redisQueue, name, interval)
-		if err := g.Connect(multi); err != nil {
+		g := NewGen(redisConn, cfg.redis.queue, cfg.generator.name, cfg.generator.interval)
+		if err := g.Connect(cfg.generator.multi); err != nil {
 			log.Fatalln(err)
 		}
 
 	//RUN CONSUMER
 	case MODE_CONSUMER:
-		maxGoroutines, err := strconv.Atoi(os.Getenv("MAX_GOROUTINES"))
-		if err != nil {
-			log.Println("invalid MAX_GOROUTINES value: ", err, ": using default")
-			maxGoroutines = 1000
-		}
 
-		for i := 0; i <= maxGoroutines; i++ {
+		for i := 0; i <= cfg.consumer.maxGoroutines; i++ {
 			go worker(i, taskChan, taskDone)
 		}
 
-		go waiter(redisConn, redisQueue, taskChan)
+		go waiter(redisConn, cfg.redis.queue, taskChan)
 		//go bbeye.Run("127.0.0.1:8080")
 	default:
-		log.Fatalln("invalid mode: ", mode)
+		log.Fatalln("invalid mode: ", cfg.mode)
 	}
 
 	//MemPrint()
