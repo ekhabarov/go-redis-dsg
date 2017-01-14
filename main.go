@@ -35,32 +35,28 @@ func main() {
 
 	switch cfg.mode {
 
-	//RUN GENERATOR
 	case MODE_GENERATOR:
-
 		g := NewGen(redisConn, cfg.redis.queue, cfg.generator.name, cfg.generator.interval)
 		if err := g.Connect(cfg.generator.multi); err != nil {
 			log.Fatalln(err)
 		}
 
-	//RUN CONSUMER
 	case MODE_CONSUMER:
-
 		for i := 0; i <= cfg.consumer.maxGoroutines; i++ {
 			go worker(i, taskChan, taskDone)
 		}
 
 		go waiter(redisConn, cfg.redis.queue, taskChan)
 		//go bbeye.Run("127.0.0.1:8080")
+
 	default:
 		log.Fatalln("invalid mode: ", cfg.mode)
 	}
 
-	//MemPrint()
-	go func() {
-		time.Sleep(time.Second * 90)
-		done <- struct{}{}
-	}()
+	go func(d chan<- struct{}) {
+		time.Sleep(time.Second * 10)
+		d <- struct{}{}
+	}(done)
 
 	for {
 		select {
@@ -68,11 +64,9 @@ func main() {
 			//fmt.Printf("Done for %dms by worker %d.\n", f.duration, f.worker)
 		case <-time.After(time.Second * 10):
 			fmt.Println("Ping generator")
-		//MemPrint()
 		case <-done:
 			fmt.Println("Done")
 			return
 		}
-
 	}
 }
