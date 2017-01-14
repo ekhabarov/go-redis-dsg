@@ -63,6 +63,15 @@ func ReadConfig() *Config {
 		}
 	}
 
+	cfg.generator.pingInterval = 10 //default value
+	if envGPI := os.Getenv(GENERATOR_PING_INTERVAL); envGPI != "" {
+		if gpi, err := strconv.Atoi(os.Getenv(GENERATOR_PING_INTERVAL)); err != nil {
+			log.Printf("invalid %s value: %s: using default", GENERATOR_PING_INTERVAL, err)
+		} else {
+			cfg.generator.pingInterval = gpi
+		}
+	}
+
 	cfg.consumer.maxGoroutines = 1000 //default value
 	if envCMG := os.Getenv(CONSUMER_MAX_GOROUTINES); envCMG != "" {
 		if maxGr, err := strconv.Atoi(envCMG); err != nil {
