@@ -11,15 +11,15 @@ import (
 )
 
 type Generator struct {
-	conn     redis.Conn
+	pool     *redis.Pool
 	queue    string
 	name     string
 	interval int
 }
 
-func NewGen(c redis.Conn, queue string, name string, interval int) *Generator {
+func NewGen(p *redis.Pool, queue string, name string, interval int) *Generator {
 	return &Generator{
-		conn:     c,
+		pool:     p,
 		queue:    queue,
 		name:     name,
 		interval: interval,
@@ -27,7 +27,10 @@ func NewGen(c redis.Conn, queue string, name string, interval int) *Generator {
 }
 
 func (g *Generator) Exists() bool {
-	data, err := g.conn.Do("CLIENT", "LIST")
+	pc := g.pool.Get()
+	defer pc.Close()
+
+	data, err := pc.Do("CLIENT", "LIST")
 	PanicIf(err)
 
 	v, err := redis.Bytes(data, err)
@@ -44,7 +47,10 @@ func (g *Generator) Connect(multi bool) error {
 		return errors.New("Another generator process already in progress. Exiting...")
 	}
 
-	_, err := g.conn.Do("CLIENT", "SETNAME", g.name)
+	pc := g.pool.Get()
+	defer pc.Close()
+
+	_, err := pc.Do("CLIENT", "SETNAME", g.name)
 	PanicIf(err)
 	fmt.Println("Generator started. Using name: ", g.name)
 
@@ -62,7 +68,10 @@ func (g *Generator) Message() string {
 
 //Added data to redis list
 func (g *Generator) Run(t <-chan time.Time) {
+	pc := g.pool.Get()
+	defer pc.Close()
 	for range t {
-		g.conn.Do("LPUSH", g.queue, g.Message())
+
+		pc.Do("LPUSH", g.queue, g.Message())
 	}
 }

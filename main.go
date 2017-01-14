@@ -3,10 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"runtime"
 	"time"
 
-	"github.com/garyburd/redigo/redis"
+	"github.com/ekhabarov/bbeye"
 )
 
 const (
@@ -14,56 +15,53 @@ const (
 	MODE_CONSUMER  = "consumer"
 )
 
-type finishedTask struct {
-	duration time.Duration
-	msg      Message
-	worker   int
-}
-
 func main() {
 	runtime.GOMAXPROCS(1)
 
-	//Redis queue which contains tasks
 	cfg := ReadConfig()
 	done := make(chan struct{})
-	taskChan := make(chan Message)
-	taskDone := make(chan finishedTask)
 
-	redisConn, err := redis.DialURL(cfg.redis.url)
-	PanicIf(err)
-	defer redisConn.Close()
+	redisPool := NewRedisPool(cfg.redis.url)
+
+	c := NewConsumer(redisPool, cfg.redis.queue, cfg.consumer.maxGoroutines)
+	g := NewGen(redisPool, cfg.redis.queue, cfg.generator.name, cfg.generator.interval)
 
 	switch cfg.mode {
 
 	case MODE_GENERATOR:
-		g := NewGen(redisConn, cfg.redis.queue, cfg.generator.name, cfg.generator.interval)
 		if err := g.Connect(cfg.generator.multi); err != nil {
 			log.Fatalln(err)
 		}
 
 	case MODE_CONSUMER:
-		for i := 0; i <= cfg.consumer.maxGoroutines; i++ {
-			go worker(i, taskChan, taskDone)
-		}
+		go c.Wait4Messages()
+		go bbeye.Run("127.0.0.1:" + os.Getenv("MPORT"))
 
-		go waiter(redisConn, cfg.redis.queue, taskChan)
-		//go bbeye.Run("127.0.0.1:8080")
+		//Ping generator
+		go func(g *Generator) {
+			for {
+				select {
+				case <-time.After(time.Second * time.Duration(cfg.generator.pingInterval)):
+					fmt.Println("Ping generator: ", g.Exists())
+				}
+			}
+		}(g)
 
 	default:
 		log.Fatalln("invalid mode: ", cfg.mode)
 	}
 
+	//Exit timeout
 	go func(d chan<- struct{}) {
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 180)
 		d <- struct{}{}
 	}(done)
 
 	for {
 		select {
-		case <-taskDone:
-			//fmt.Printf("Done for %dms by worker %d.\n", f.duration, f.worker)
-		case <-time.After(time.Second * 10):
-			fmt.Println("Ping generator")
+		case <-c.out:
+			//Process finished task
+
 		case <-done:
 			fmt.Println("Done")
 			return
