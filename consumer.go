@@ -59,8 +59,8 @@ func (c *Consumer) Wait4Messages() {
 		case s := <-c.control:
 			switch s {
 			case CTRL_STOP:
-				fmt.Println("Workers stoped")
 				close(c.in)
+				log.Println("All workers stoped.")
 				return
 			default:
 				//Do nothing
@@ -97,6 +97,5 @@ func (c *Consumer) RunWorker(wid int) {
 }
 
 func (c *Consumer) Stop() {
-	fmt.Println("Stop all workers")
 	c.control <- CTRL_STOP
 }

@@ -52,10 +52,8 @@ func (g *Generator) Connect(multi bool) error {
 
 	_, err := pc.Do("CLIENT", "SETNAME", g.name)
 	PanicIf(err)
-	fmt.Println("Generator started. Using name: ", g.name)
 
-	ticker := time.NewTicker( /*time.Millisecond * */ time.Duration(g.interval))
-
+	ticker := time.NewTicker(time.Millisecond * time.Duration(g.interval))
 	go g.Run(ticker.C)
 
 	return nil
