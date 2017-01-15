@@ -1,3 +1,4 @@
+//Distributed message consumer and generator for Redis.
 package main
 
 import (
