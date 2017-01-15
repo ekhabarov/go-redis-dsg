@@ -18,6 +18,7 @@ const (
 
 func main() {
 	runtime.GOMAXPROCS(1)
+	//runtime.GOMAXPROCS(runtime.NumCPU())
 
 	ge := flag.Bool("getErrors", false, "Get all errors from Redis")
 	flag.Parse()
@@ -62,7 +63,7 @@ func main() {
 
 	//Exit timeout
 	go func(d chan<- struct{}) {
-		time.Sleep(time.Second * 180)
+		time.Sleep(time.Second * 300)
 		d <- struct{}{}
 	}(done)
 
@@ -70,7 +71,7 @@ func main() {
 		select {
 		case <-c.out:
 		case <-done:
-			fmt.Println("Done.")
+			log.Println("Done.")
 			return
 		}
 	}
