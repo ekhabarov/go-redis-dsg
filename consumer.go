@@ -63,10 +63,11 @@ func NewConsumer(p *redis.Pool, q string, eq string, mg int) *Consumer {
 
 //Waits for new messages by BRPOP
 func (c *Consumer) Wait4Messages() {
-	fmt.Println("Waiting for messages. Run workers.")
 	for i := 1; i <= c.maxGoroutines; i++ {
 		go c.RunWorker(i)
 	}
+	log.Printf("%d workers started.\n", c.maxGoroutines)
+
 	pc := c.pool.Get()
 	defer pc.Close()
 
@@ -76,13 +77,12 @@ func (c *Consumer) Wait4Messages() {
 			switch s {
 			case CTRL_STOP:
 				close(c.in)
-				log.Println("All workers stoped.")
+				log.Println("All workers stopped.")
 				return
 			default:
 				//Do nothing
 			}
 		default:
-			//fmt.Printf("+")
 			msg, err := pc.Do("BRPOP", c.queue, 0)
 			if err != nil {
 				log.Println("unable to get message from redis: ", err)
@@ -101,7 +101,6 @@ func (c *Consumer) Wait4Messages() {
 
 //Makes primary work for random milliseconds.
 func (c *Consumer) RunWorker(wid int) {
-	fmt.Printf(".")
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	processTime := time.Duration(r.Intn(MAX_RAND_PROCESS_TIME))
 
