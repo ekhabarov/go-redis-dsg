@@ -51,6 +51,8 @@ func (c *Consumer) Wait4Messages() {
 	for i := 1; i <= c.maxGoroutines; i++ {
 		go c.RunWorker(i)
 	}
+	pc := c.pool.Get()
+	defer pc.Close()
 
 	for {
 		select {
@@ -64,10 +66,7 @@ func (c *Consumer) Wait4Messages() {
 				//Do nothing
 			}
 		default:
-			fmt.Printf("+")
-			pc := c.pool.Get()
-			defer pc.Close()
-
+			//fmt.Printf("+")
 			msg, err := pc.Do("BRPOP", c.queue, 0)
 			if err != nil {
 				log.Println("unable to get message from redis: ", err)
@@ -87,7 +86,6 @@ func (c *Consumer) Wait4Messages() {
 //Makes primary work for random milliseconds.
 //Stop work by closing in channel
 func (c *Consumer) RunWorker(wid int) {
-	//fmt.Printf("Worker %d started.\n", wid)
 	fmt.Printf(".")
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	processTime := time.Duration(r.Intn(MAX_RAND_PROCESS_TIME))

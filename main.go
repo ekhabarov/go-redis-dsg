@@ -34,18 +34,24 @@ func main() {
 		}
 
 	case MODE_CONSUMER:
-		go c.Wait4Messages()
 		go bbeye.Run("127.0.0.1:" + os.Getenv("MPORT"))
+		go c.Wait4Messages()
 
 		//Ping generator
-		go func(g *Generator) {
+		go func(g *Generator, c *Consumer) {
 			for {
 				select {
 				case <-time.After(time.Second * time.Duration(cfg.generator.pingInterval)):
-					fmt.Println("Ping generator: ", g.Exists())
+					if !g.Exists() {
+						if err := g.Connect(cfg.generator.multi); err != nil {
+							log.Fatalln("unreachable error:", err)
+						}
+						c.Stop()
+						return
+					}
 				}
 			}
-		}(g)
+		}(g, c)
 
 	default:
 		log.Fatalln("invalid mode: ", cfg.mode)
