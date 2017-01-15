@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -18,10 +19,25 @@ const (
 func main() {
 	runtime.GOMAXPROCS(1)
 
+	ge := flag.Bool("getErrors", false, "Get all errors from Redis")
+	flag.Parse()
+
 	cfg := ReadConfig()
 	done := make(chan struct{})
 
 	redisPool := NewRedisPool(cfg.redis.url)
+
+	if *ge {
+		e := NewErrorReader(redisPool, cfg.redis.errQueue)
+		if e.Count() < 1 {
+			log.Println("Errors list is empty.")
+			return
+		}
+		for _, m := range e.ReadErrors() {
+			fmt.Println(m)
+		}
+		return
+	}
 
 	c := NewConsumer(redisPool, cfg.redis.queue, cfg.redis.errQueue, cfg.consumer.maxGoroutines)
 	g := NewGen(redisPool, cfg.redis.queue, cfg.generator.name, cfg.generator.interval)
@@ -39,6 +55,7 @@ func main() {
 		go c.Wait4Errors()
 		go c.Wait4Messages()
 		go pingGenerator(g, c, cfg.generator.pingInterval)
+
 	default:
 		log.Fatalln("invalid mode: ", cfg.mode)
 	}
@@ -52,10 +69,8 @@ func main() {
 	for {
 		select {
 		case <-c.out:
-			//Process finished task
-
 		case <-done:
-			fmt.Println("Done")
+			fmt.Println("Done.")
 			return
 		}
 	}

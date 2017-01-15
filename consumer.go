@@ -10,8 +10,10 @@ import (
 )
 
 const (
+	//Max number or ms for processing message
 	MAX_RAND_PROCESS_TIME = 1000
 
+	//Command for stoping workers
 	CTRL_STOP = iota
 )
 
@@ -42,9 +44,10 @@ type (
 )
 
 func (b *BadMessage) String() string {
-	return fmt.Sprintf("{m:%q, e:%q}", b.msg, b.err)
+	return fmt.Sprintf("m:%q e:%q", b.msg, b.err)
 }
 
+//Create new Consumer struct
 func NewConsumer(p *redis.Pool, q string, eq string, mg int) *Consumer {
 	return &Consumer{
 		pool:          p,
@@ -97,7 +100,6 @@ func (c *Consumer) Wait4Messages() {
 }
 
 //Makes primary work for random milliseconds.
-//Stop work by closing in channel
 func (c *Consumer) RunWorker(wid int) {
 	fmt.Printf(".")
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -113,10 +115,12 @@ func (c *Consumer) RunWorker(wid int) {
 	}
 }
 
+//Stops all workers
 func (c *Consumer) Stop() {
 	c.control <- CTRL_STOP
 }
 
+//Send bag message back to redis
 func (c *Consumer) PushError(b BadMessage) {
 	pc := c.pool.Get()
 	defer pc.Close()
@@ -125,6 +129,7 @@ func (c *Consumer) PushError(b BadMessage) {
 	PanicIf(err)
 }
 
+//Get bad messages from chan and call PushError
 func (c *Consumer) Wait4Errors() {
 	for {
 		select {

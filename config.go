@@ -24,15 +24,18 @@ type (
 		queue    string
 		errQueue string
 	}
+
 	cfgGenerator struct {
 		name         string
 		multi        bool
 		interval     int
 		pingInterval int
 	}
+
 	cfgConsumer struct {
 		maxGoroutines int
 	}
+
 	Config struct {
 		mode      string
 		redis     *cfgRedis
@@ -41,6 +44,7 @@ type (
 	}
 )
 
+//Read environmetns variables and returns new Config struct
 func ReadConfig() *Config {
 	cfg := &Config{
 		redis:     &cfgRedis{},

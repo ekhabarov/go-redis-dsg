@@ -17,6 +17,7 @@ type Generator struct {
 	interval int
 }
 
+//Creates new Generator
 func NewGen(p *redis.Pool, queue string, name string, interval int) *Generator {
 	return &Generator{
 		pool:     p,
@@ -26,6 +27,8 @@ func NewGen(p *redis.Pool, queue string, name string, interval int) *Generator {
 	}
 }
 
+//Check for another generator already working
+//Assuming here it's using same generator name across all apps
 func (g *Generator) Exists() bool {
 	pc := g.pool.Get()
 	defer pc.Close()
@@ -42,6 +45,7 @@ func (g *Generator) Exists() bool {
 	return strings.Contains(s, "name="+g.name)
 }
 
+//Connects to Redis and runs generator
 func (g *Generator) Connect(multi bool) error {
 	if !multi && g.Exists() {
 		return errors.New("Another generator process already in progress. Exiting...")

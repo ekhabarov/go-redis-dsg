@@ -10,12 +10,21 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
+//Call panic if err is not nil
 func PanicIf(err error) {
 	if err != nil {
 		panic(err)
 	}
 }
 
+//Prints error to stdout if err is not nil
+func LogIf(err error) {
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+//Prints memory consuming info
 func MemPrint() {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
@@ -38,6 +47,7 @@ func prob() bool {
 	return n <= 5
 }
 
+//Runs genera pinger
 func pingGenerator(g *Generator, c *Consumer, interval int) {
 	for {
 		select {
