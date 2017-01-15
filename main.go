@@ -23,7 +23,7 @@ func main() {
 
 	redisPool := NewRedisPool(cfg.redis.url)
 
-	c := NewConsumer(redisPool, cfg.redis.queue, cfg.consumer.maxGoroutines)
+	c := NewConsumer(redisPool, cfg.redis.queue, cfg.redis.errQueue, cfg.consumer.maxGoroutines)
 	g := NewGen(redisPool, cfg.redis.queue, cfg.generator.name, cfg.generator.interval)
 
 	switch cfg.mode {
@@ -36,9 +36,9 @@ func main() {
 
 	case MODE_CONSUMER:
 		go bbeye.Run("127.0.0.1:" + os.Getenv("MPORT"))
+		go c.Wait4Errors()
 		go c.Wait4Messages()
 		go pingGenerator(g, c, cfg.generator.pingInterval)
-
 	default:
 		log.Fatalln("invalid mode: ", cfg.mode)
 	}

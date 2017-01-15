@@ -18,7 +18,12 @@ const (
 type (
 	Message string
 
-	FinishedTask struct {
+	BadMessage struct {
+		msg Message
+		err string
+	}
+
+	ProcessedMessage struct {
 		duration time.Duration
 		msg      Message
 		worker   int
@@ -27,19 +32,27 @@ type (
 	Consumer struct {
 		pool          *redis.Pool
 		queue         string
+		errQueue      string
 		in            chan Message
-		out           chan FinishedTask
+		out           chan ProcessedMessage
+		bad           chan BadMessage
 		maxGoroutines int
 		control       chan byte
 	}
 )
 
-func NewConsumer(p *redis.Pool, queue string, mg int) *Consumer {
+func (b *BadMessage) String() string {
+	return fmt.Sprintf("{m:%q, e:%q}", b.msg, b.err)
+}
+
+func NewConsumer(p *redis.Pool, q string, eq string, mg int) *Consumer {
 	return &Consumer{
 		pool:          p,
-		queue:         queue,
+		queue:         q,
+		errQueue:      eq,
 		in:            make(chan Message),
-		out:           make(chan FinishedTask),
+		out:           make(chan ProcessedMessage),
+		bad:           make(chan BadMessage),
 		control:       make(chan byte),
 		maxGoroutines: mg,
 	}
@@ -90,12 +103,33 @@ func (c *Consumer) RunWorker(wid int) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	processTime := time.Duration(r.Intn(MAX_RAND_PROCESS_TIME))
 
-	for t := range c.in {
-		time.Sleep(time.Millisecond * processTime)
-		c.out <- FinishedTask{processTime, t, wid}
+	for m := range c.in {
+		if prob() {
+			c.bad <- BadMessage{msg: m, err: fmt.Sprintf("Error code %d", processTime)}
+		} else {
+			time.Sleep(time.Millisecond * processTime)
+			c.out <- ProcessedMessage{duration: processTime, msg: m, worker: wid}
+		}
 	}
 }
 
 func (c *Consumer) Stop() {
 	c.control <- CTRL_STOP
+}
+
+func (c *Consumer) PushError(b BadMessage) {
+	pc := c.pool.Get()
+	defer pc.Close()
+
+	_, err := pc.Do("LPUSH", c.errQueue, b.String())
+	PanicIf(err)
+}
+
+func (c *Consumer) Wait4Errors() {
+	for {
+		select {
+		case b := <-c.bad:
+			c.PushError(b)
+		}
+	}
 }

@@ -14,13 +14,15 @@ const (
 	MULTIGEN                = "MULTIGEN"
 	REDIS_URL               = "REDIS_URL"
 	REDIS_QUEUE             = "REDIS_QUEUE"
+	REDIS_ERROR_QUEUE       = "REDIS_ERROR_QUEUE"
 	CONSUMER_MAX_GOROUTINES = "CONSUMER_MAX_GOROUTINES"
 )
 
 type (
 	cfgRedis struct {
-		url   string
-		queue string
+		url      string
+		queue    string
+		errQueue string
 	}
 	cfgGenerator struct {
 		name         string
@@ -50,6 +52,7 @@ func ReadConfig() *Config {
 
 	cfg.redis.url = os.Getenv(REDIS_URL)
 	cfg.redis.queue = os.Getenv(REDIS_QUEUE)
+	cfg.redis.errQueue = os.Getenv(REDIS_ERROR_QUEUE)
 
 	cfg.generator.name = os.Getenv(GENERATOR_NAME)
 	cfg.generator.multi = os.Getenv(MULTIGEN) != ""
