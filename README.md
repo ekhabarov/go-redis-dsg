@@ -23,8 +23,8 @@ MPORT=8082 MODE=generator go-dgen
 ```
 
 #### Command line flags
-* `-getErrors` - get all errors from `REDIS_ERROR_QUEUE` list, print it and 
-delete from Redis.
+* `-getErrors` - get all errors from `REDIS_ERROR_QUEUE` list, print them and 
+delete them from Redis.
 
 ### Environment variables
 Name | Type | Default | Description
