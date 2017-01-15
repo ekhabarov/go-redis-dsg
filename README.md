@@ -42,6 +42,7 @@ Generator could be stopped without any preparation.
 
 #### Consumer mode
 In this mode:
+
 1. App waits messages from `REDIS_QUEUE` list using `BRPOP` command.
 1. It processes  message within random number of milliseconds.
 1. It sends processed messages into `out` Go chan and "invalid" messages to 
