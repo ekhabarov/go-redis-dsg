@@ -13,6 +13,19 @@
   go get github.com/ekhabarov/go-redis-dsg
 ```
 
+### Run
+```
+  . ./env; go-redis-dsg 
+```
+or 
+```
+MPORT=8082 MODE=generator go-dgen
+```
+
+#### Command line flags
+* `-getErrors` - get all errors from `REDIS_ERROR_QUEUE` list, print it and 
+delete from Redis.
+
 ### Environment variables
 Name | Type | Default | Description
 -----|------|---------|------------
