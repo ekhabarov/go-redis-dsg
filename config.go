@@ -12,6 +12,7 @@ const (
 	REDIS_URL               = "REDIS_URL"
 	REDIS_QUEUE             = "REDIS_QUEUE"
 	REDIS_ERROR_QUEUE       = "REDIS_ERROR_QUEUE"
+	REDIS_POOL_SIZE         = "REDIS_POOL_SIZE"
 	CONSUMER_MAX_GOROUTINES = "CONSUMER_MAX_GOROUTINES"
 )
 
@@ -20,6 +21,7 @@ type (
 		url      string
 		queue    string
 		errQueue string
+		poolSize int
 	}
 
 	cfgGenerator struct {
@@ -38,6 +40,17 @@ type (
 	}
 )
 
+func readIntParam(val *int, def int, e string) {
+	*val = def //default value
+	if v := os.Getenv(e); v != "" {
+		if iv, err := strconv.Atoi(v); err != nil {
+			log.Printf("invalid %s value: %s: using default", e, err)
+		} else {
+			*val = iv
+		}
+	}
+}
+
 //Read environmetns variables and returns new Config struct
 func ReadConfig() *Config {
 	cfg := &Config{
@@ -50,32 +63,10 @@ func ReadConfig() *Config {
 	cfg.redis.queue = os.Getenv(REDIS_QUEUE)
 	cfg.redis.errQueue = os.Getenv(REDIS_ERROR_QUEUE)
 
-	cfg.generator.interval = 500 //default value
-	if envGI := os.Getenv(GENERATOR_INTERVAL); envGI != "" {
-		if gi, err := strconv.Atoi(envGI); err != nil {
-			log.Printf("invalid %s value: %s: using default", GENERATOR_INTERVAL, err)
-		} else {
-			cfg.generator.interval = gi
-		}
-	}
-
-	cfg.generator.pingInterval = 10 //default value
-	if envGPI := os.Getenv(GENERATOR_PING_INTERVAL); envGPI != "" {
-		if gpi, err := strconv.Atoi(envGPI); err != nil {
-			log.Printf("invalid %s value: %s: using default", GENERATOR_PING_INTERVAL, err)
-		} else {
-			cfg.generator.pingInterval = gpi
-		}
-	}
-
-	cfg.consumer.maxGoroutines = 1000 //default value
-	if envCMG := os.Getenv(CONSUMER_MAX_GOROUTINES); envCMG != "" {
-		if maxGr, err := strconv.Atoi(envCMG); err != nil {
-			log.Printf("invalid %s value: %s: using default", CONSUMER_MAX_GOROUTINES, err)
-		} else {
-			cfg.consumer.maxGoroutines = maxGr
-		}
-	}
+	readIntParam(&cfg.redis.poolSize, 100, REDIS_POOL_SIZE)
+	readIntParam(&cfg.generator.interval, 500, GENERATOR_INTERVAL)
+	readIntParam(&cfg.generator.pingInterval, 10, GENERATOR_PING_INTERVAL)
+	readIntParam(&cfg.consumer.maxGoroutines, 1000, CONSUMER_MAX_GOROUTINES)
 
 	return cfg
 }
