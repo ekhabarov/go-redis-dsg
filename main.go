@@ -31,7 +31,7 @@ func main() {
 	cfg := ReadConfig()
 	done := make(chan struct{})
 
-	redisPool := NewRedisPool(cfg.redis.url)
+	redisPool := NewRedisPool(cfg.redis.url, cfg.redis.poolSize)
 
 	if *ge {
 		e := NewErrorReader(redisPool, cfg.redis.errQueue)

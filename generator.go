@@ -85,7 +85,7 @@ func (g *Generator) Run() {
 
 	ticker := time.NewTicker(time.Millisecond * time.Duration(g.interval))
 
-	log.Println("Generator started.", g.name)
+	log.Printf("Generator started (name: %s).\n", g.name)
 
 	for range ticker.C {
 		pc.Do("LPUSH", g.queue, g.Message())
@@ -100,7 +100,6 @@ func (g *Generator) Pinger(c *Consumer) {
 			if g.AcquireLock() {
 				go g.Run()
 				c.Stop()
-				log.Printf("Switched to generator (name: %s).", g.name)
 			} else {
 				g.RefreshLock()
 			}

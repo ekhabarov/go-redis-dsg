@@ -77,6 +77,7 @@ func (c *Consumer) Wait4Messages() {
 			switch s {
 			case CTRL_STOP:
 				close(c.in)
+				close(c.bad)
 				log.Println("All workers stopped.")
 				return
 			default:
@@ -119,21 +120,16 @@ func (c *Consumer) Stop() {
 	c.control <- CTRL_STOP
 }
 
-//Send bag message back to redis
-func (c *Consumer) PushError(b BadMessage) {
+//Get bad messages from chan and call PushError
+func (c *Consumer) Wait4Errors() {
 	pc := c.pool.Get()
 	defer pc.Close()
 
-	_, err := pc.Do("LPUSH", c.errQueue, b.String())
-	PanicIf(err)
-}
-
-//Get bad messages from chan and call PushError
-func (c *Consumer) Wait4Errors() {
 	for {
 		select {
 		case b := <-c.bad:
-			c.PushError(b)
+			_, err := pc.Do("LPUSH", c.errQueue, b.String())
+			PanicIf(err)
 		}
 	}
 }
