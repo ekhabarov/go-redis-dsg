@@ -7,11 +7,8 @@ import (
 )
 
 const (
-	MODE                    = "MODE"
-	GENERATOR_NAME          = "GENERATOR_NAME"
 	GENERATOR_INTERVAL      = "GENERATOR_INTERVAL"
 	GENERATOR_PING_INTERVAL = "GENERATOR_PING_INTERVAL"
-	MULTIGEN                = "MULTIGEN"
 	REDIS_URL               = "REDIS_URL"
 	REDIS_QUEUE             = "REDIS_QUEUE"
 	REDIS_ERROR_QUEUE       = "REDIS_ERROR_QUEUE"
@@ -26,8 +23,6 @@ type (
 	}
 
 	cfgGenerator struct {
-		name         string
-		multi        bool
 		interval     int
 		pingInterval int
 	}
@@ -37,7 +32,6 @@ type (
 	}
 
 	Config struct {
-		mode      string
 		redis     *cfgRedis
 		generator *cfgGenerator
 		consumer  *cfgConsumer
@@ -52,18 +46,13 @@ func ReadConfig() *Config {
 		consumer:  &cfgConsumer{},
 	}
 
-	cfg.mode = os.Getenv(MODE)
-
 	cfg.redis.url = os.Getenv(REDIS_URL)
 	cfg.redis.queue = os.Getenv(REDIS_QUEUE)
 	cfg.redis.errQueue = os.Getenv(REDIS_ERROR_QUEUE)
 
-	cfg.generator.name = os.Getenv(GENERATOR_NAME)
-	cfg.generator.multi = os.Getenv(MULTIGEN) != ""
-
 	cfg.generator.interval = 500 //default value
 	if envGI := os.Getenv(GENERATOR_INTERVAL); envGI != "" {
-		if gi, err := strconv.Atoi(os.Getenv(GENERATOR_INTERVAL)); err != nil {
+		if gi, err := strconv.Atoi(envGI); err != nil {
 			log.Printf("invalid %s value: %s: using default", GENERATOR_INTERVAL, err)
 		} else {
 			cfg.generator.interval = gi
@@ -72,7 +61,7 @@ func ReadConfig() *Config {
 
 	cfg.generator.pingInterval = 10 //default value
 	if envGPI := os.Getenv(GENERATOR_PING_INTERVAL); envGPI != "" {
-		if gpi, err := strconv.Atoi(os.Getenv(GENERATOR_PING_INTERVAL)); err != nil {
+		if gpi, err := strconv.Atoi(envGPI); err != nil {
 			log.Printf("invalid %s value: %s: using default", GENERATOR_PING_INTERVAL, err)
 		} else {
 			cfg.generator.pingInterval = gpi

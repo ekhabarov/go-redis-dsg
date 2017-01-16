@@ -1,66 +1,76 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"strings"
+	"log"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
 	uuid "github.com/satori/go.uuid"
 )
 
+const (
+	LOCK_NAME = "lock:gen"
+)
+
 type Generator struct {
-	pool     *redis.Pool
-	queue    string
-	name     string
-	interval int
+	pool         *redis.Pool
+	queue        string
+	name         string
+	interval     int
+	pingInterval int
 }
 
 //Creates new Generator
-func NewGen(p *redis.Pool, queue string, name string, interval int) *Generator {
+func NewGen(p *redis.Pool, queue string, interval, pinterval int) *Generator {
 	return &Generator{
-		pool:     p,
-		queue:    queue,
-		name:     name,
-		interval: interval,
+		pool:         p,
+		queue:        queue,
+		interval:     interval,
+		pingInterval: pinterval,
+		name:         uuid.NewV4().String(),
 	}
 }
 
-//Check for another generator already working
-//Assuming here it's using same generator name across all apps
-func (g *Generator) Exists() bool {
+//Tries to acquire new lock
+func (g *Generator) AcquireLock() bool {
 	pc := g.pool.Get()
 	defer pc.Close()
 
-	data, err := pc.Do("CLIENT", "LIST")
-	PanicIf(err)
+	//Set lock expire time pingInterval+5 seconds.
+	//5 is a "magic number", time for network lag, etc.
+	lock, err := pc.Do("SET", LOCK_NAME, g.name, "EX", g.pingInterval+5, "NX")
+	LogIf(err)
 
-	v, err := redis.Bytes(data, err)
-	PanicIf(err)
-
-	s, err := redis.String(v, err)
-	PanicIf(err)
-
-	return strings.Contains(s, "name="+g.name)
+	return lock == "OK"
 }
 
-//Connects to Redis and runs generator
-func (g *Generator) Connect(multi bool) error {
-	if !multi && g.Exists() {
-		return errors.New("Another generator process already in progress. Exiting...")
-	}
-
+//Refreshes it's own lock
+func (g *Generator) RefreshLock() bool {
 	pc := g.pool.Get()
 	defer pc.Close()
 
-	_, err := pc.Do("CLIENT", "SETNAME", g.name)
+	_, err := pc.Do("WATCH", LOCK_NAME)
 	PanicIf(err)
 
-	ticker := time.NewTicker(time.Millisecond * time.Duration(g.interval))
-	go g.Run(ticker.C)
+	cg, err := pc.Do("GET", LOCK_NAME)
+	PanicIf(err)
 
-	return nil
+	cg, err = redis.String(cg, err)
+	PanicIf(err)
+
+	if cg == g.name {
+		pc.Send("MULTI")
+		pc.Send("SET", LOCK_NAME, g.name, "EX", g.pingInterval+5, "XX")
+		lock, err := pc.Do("EXEC")
+		PanicIf(err)
+
+		return lock == "OK"
+	} else {
+		_, err := pc.Do("UNWATCH")
+		PanicIf(err)
+	}
+	return false
 }
 
 //Generates random string
@@ -69,11 +79,31 @@ func (g *Generator) Message() string {
 }
 
 //Added data to redis list
-func (g *Generator) Run(t <-chan time.Time) {
+func (g *Generator) Run() {
 	pc := g.pool.Get()
 	defer pc.Close()
-	for range t {
 
+	ticker := time.NewTicker(time.Millisecond * time.Duration(g.interval))
+
+	log.Println("Generator started.", g.name)
+
+	for range ticker.C {
 		pc.Do("LPUSH", g.queue, g.Message())
+	}
+}
+
+//Pinger
+func (g *Generator) Pinger(c *Consumer) {
+	for {
+		select {
+		case <-time.After(time.Second * time.Duration(g.pingInterval)):
+			if g.AcquireLock() {
+				go g.Run()
+				c.Stop()
+				log.Printf("Switched to generator (name: %s).", g.name)
+			} else {
+				g.RefreshLock()
+			}
+		}
 	}
 }

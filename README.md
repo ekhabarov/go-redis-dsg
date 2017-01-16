@@ -29,12 +29,9 @@ delete them from Redis.
 ### Environment variables
 Name | Type | Default | Description
 -----|------|---------|------------
-MODE | string | 'consumer' | Working mode. Should be `consumer` or `generator` 
 MPORT | integer | 8080 | Port for [expvarmon](https://github.com/divan/expvarmon) monitoring tool.
-GENERATOR_NAME | string | 'gen-001' | Generator name. Used for determining of generator is working. 
 GENERATOR_PING_INTERVAL | integer | 10 | Number of seconds between ping requests while checking is generator working.
 GENERATOR_INTERVAL | integer | 500 | Number of milliseconds between new messages.
-MULTIGEN | boolean | false | If `true`, allows to run several generators at time.
 REDIS_URL | string | '127.0.0.1:6379' | Redis address.
 REDIS_QUEUE | string | 'a' | Redis list name which contains generated messages.
 REDIS_ERROR_QUEUE | string | 'errors' | Redis list name with processes but invalid messages. 
