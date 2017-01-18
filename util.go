@@ -28,6 +28,7 @@ func prob() bool {
 	return n <= 5
 }
 
+//Returns current mode
 func Mode(g *Generator, c *Consumer) byte {
 	if g.IsActive() {
 		return MODE_GENERATOR
@@ -37,7 +38,6 @@ func Mode(g *Generator, c *Consumer) byte {
 	} else {
 		return MODE_UNKNOWN
 	}
-
 }
 
 //Pinger

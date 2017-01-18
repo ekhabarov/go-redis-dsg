@@ -40,6 +40,7 @@ type (
 	}
 )
 
+//Reads param and converts it to integer
 func readIntParam(val *int, def int, e string) {
 	*val = def //default value
 	if v := os.Getenv(e); v != "" {

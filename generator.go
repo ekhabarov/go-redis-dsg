@@ -150,10 +150,12 @@ func (g *Generator) Start() {
 	}
 }
 
+//Stops generator
 func (g *Generator) Stop() {
 	g.stop <- struct{}{}
 }
 
+//Returns generator state
 func (g *Generator) IsActive() bool {
 	return g.isActive
 }

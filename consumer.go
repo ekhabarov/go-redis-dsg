@@ -21,6 +21,7 @@ const (
 type (
 	Message string
 
+	//Message with error
 	BadMessage struct {
 		msg Message
 		err string
@@ -45,6 +46,7 @@ type (
 	}
 )
 
+//String representation of BadMessage
 func (b *BadMessage) String() string {
 	return fmt.Sprintf("m:%q e:%q", b.msg, b.err)
 }
@@ -63,6 +65,7 @@ func NewConsumer(p *redis.Pool, q string, eq string, mg int) *Consumer {
 	}
 }
 
+//Redis message listner
 func (c *Consumer) Process(in chan Message, out chan ProcessedMessage) {
 	c.in = in
 	c.out = out
@@ -105,7 +108,7 @@ func (c *Consumer) Process(in chan Message, out chan ProcessedMessage) {
 	}
 }
 
-//Waits for new messages by BRPOP
+//Runs message consuming
 func (c *Consumer) Start() chan ProcessedMessage {
 	in := make(chan Message)
 	out := make(chan ProcessedMessage)
@@ -145,6 +148,7 @@ func (c *Consumer) RunWorker(wid int) {
 	}
 }
 
+//Closes working channels
 func (c *Consumer) Close() {
 	if !c.IsActive() {
 		return
@@ -169,10 +173,12 @@ func (c *Consumer) ProcessErrors(bad chan BadMessage) {
 	}
 }
 
+//Returns consumer state
 func (c *Consumer) IsActive() bool {
 	return c.isActive
 }
 
+//Pings Redis
 func (c *Consumer) Ping() bool {
 	pc := c.pool.Get()
 	defer pc.Close()
