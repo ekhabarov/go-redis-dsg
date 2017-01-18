@@ -64,12 +64,9 @@ func NewConsumer(p *redis.Pool, q string, eq string, mg int) *Consumer {
 }
 
 func (c *Consumer) Process(in chan Message, out chan ProcessedMessage) {
-	log.Println("Preparing for starting consumer")
-
 	c.in = in
 	c.out = out
 
-	//TODO Add PING before run workers
 	for i := 1; i <= c.maxGoroutines; i++ {
 		go c.RunWorker(i)
 	}
@@ -80,7 +77,7 @@ func (c *Consumer) Process(in chan Message, out chan ProcessedMessage) {
 	pc := c.pool.Get()
 	defer pc.Close()
 	defer func(c *Consumer) {
-		log.Println("Consumer stopped.")
+		log.Printf("%d workers stopped.\n", c.maxGoroutines)
 		c.isActive = false
 	}(c)
 	defer c.Close()
@@ -88,8 +85,6 @@ func (c *Consumer) Process(in chan Message, out chan ProcessedMessage) {
 	for {
 		select {
 		case <-c.stop:
-			log.Println("Consumer stopping")
-			time.Sleep(time.Second)
 			c.stop <- struct{}{}
 			return
 		default:
@@ -105,9 +100,7 @@ func (c *Consumer) Process(in chan Message, out chan ProcessedMessage) {
 			s, err := redis.String(v[1], err)
 			LogIf(err)
 
-			fmt.Printf(":")
 			c.in <- Message(s)
-			fmt.Printf(".")
 		}
 	}
 }
@@ -133,11 +126,8 @@ func (c *Consumer) Stop() {
 	if !c.IsActive() {
 		return
 	}
-	log.Println("stop: 1")
 	c.stop <- struct{}{}
-	log.Println("stop: 2")
 	<-c.stop
-	log.Println("stop: 3")
 }
 
 //Makes primary work for random milliseconds.
@@ -150,9 +140,7 @@ func (c *Consumer) RunWorker(wid int) {
 			c.bad <- BadMessage{msg: m, err: fmt.Sprintf("Error code %d", processTime)}
 		} else {
 			time.Sleep(time.Millisecond * processTime)
-			fmt.Printf(">")
 			c.out <- ProcessedMessage{duration: processTime, msg: m, worker: wid}
-			fmt.Printf("<")
 		}
 	}
 }
@@ -164,7 +152,6 @@ func (c *Consumer) Close() {
 	close(c.bad)
 	close(c.in)
 	close(c.out)
-	log.Println("Channels closed.")
 }
 
 //Get bad messages from chan and call PushError
@@ -194,6 +181,5 @@ func (c *Consumer) Ping() bool {
 	if err != nil {
 		return false
 	}
-	fmt.Println("PING:", p)
 	return p == "PONG"
 }

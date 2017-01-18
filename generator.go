@@ -136,16 +136,10 @@ func (g *Generator) Start() {
 
 	log.Printf("Generator started (name: %s).\n", g.name)
 	g.isActive = true
-	i := 0
+
 	for {
 		select {
 		case <-ticker.C:
-			i++
-			if i >= 1000 {
-				fmt.Printf("+")
-				i = 0
-			}
-			fmt.Printf(".")
 			if _, err := pc.Do("LPUSH", g.queue, g.Message()); err != nil {
 				log.Println("messages: unable to push to redis:", err)
 				return

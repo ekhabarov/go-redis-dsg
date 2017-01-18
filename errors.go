@@ -7,11 +7,6 @@ type (
 		pool     *redis.Pool
 		errQueue string
 	}
-
-	EMsg struct {
-		M string
-		E string
-	}
 )
 
 //Creates new ErrorReader
