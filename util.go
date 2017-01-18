@@ -32,9 +32,13 @@ func prob() bool {
 func Mode(g *Generator, c *Consumer) byte {
 	if g.IsActive() {
 		return MODE_GENERATOR
-	} else {
-		return MODE_CONSUMER
 	}
+	if c.IsActive() {
+		return MODE_CONSUMER
+	} else {
+		return MODE_UNKNOWN
+	}
+
 }
 
 //Pinger
@@ -42,12 +46,15 @@ func StartPing(g *Generator, c *Consumer, p *chan ProcessedMessage) {
 	ticker := time.NewTicker(time.Second * time.Duration(g.pingInterval))
 
 	for range ticker.C {
-		fmt.Println("ping")
 
-		switch Mode(g, c) {
+		m := Mode(g, c)
+		fmt.Println("ping: ", m, "c.IsActive:", c.IsActive(), "g.IsActive:", g.IsActive())
+
+		switch m {
 		case MODE_GENERATOR:
 			if !g.AcquireLock() {
-				if g.RefreshLock() == LOCK_NOT_REFRESHED {
+				switch g.RefreshLock() {
+				case LOCK_NOT_REFRESHED:
 					g.Stop()
 					fmt.Printf("Switching to consumer")
 					*p = c.Start()
@@ -60,13 +67,20 @@ func StartPing(g *Generator, c *Consumer, p *chan ProcessedMessage) {
 				go g.Start()
 			}
 		default:
-			panic("unreachable mode")
+			if g.AcquireLock() {
+				go g.Start()
+			} else {
+				*p = c.Start()
+			}
+
+			//panic("unreachable mode")
 		}
 
 		//can be gen->cons->gen->cons transfer? yes
 
 		//if mode = consumer try to acquire lock
 		//	if true stop consumer, start generator
+		//	if false start consumer
 
 		//if mode = generator try to acquire lock,
 		//	if false try to refresh lock

@@ -21,6 +21,8 @@ const (
 
 	//Lock exists, but belongs to another generator
 	LOCK_NOT_REFRESHED
+
+	CONNECTION_PROBLEM
 )
 
 type Generator struct {
@@ -70,13 +72,15 @@ func (g *Generator) RefreshLock() byte {
 	_, err := pc.Do("WATCH", LOCK_NAME)
 	if err != nil {
 		log.Println("refreshlock: unable to execute WATCH:", err)
-		return LOCK_NOT_REFRESHED
+		//return LOCK_NOT_REFRESHED
+		return CONNECTION_PROBLEM
 	}
 
 	cg, err := pc.Do("GET", LOCK_NAME)
 	if err != nil {
 		log.Println("refreshlock: unable to execute GET:", err)
-		return LOCK_NOT_REFRESHED
+		//return LOCK_NOT_REFRESHED
+		return CONNECTION_PROBLEM
 	}
 
 	cg, err = redis.String(cg, err)
@@ -88,7 +92,8 @@ func (g *Generator) RefreshLock() byte {
 		lock, err := redis.Values(pc.Do("EXEC"))
 		if err != nil {
 			log.Println("refreshlock: unable to execute EXEC:", err)
-			return LOCK_NOT_REFRESHED
+			//return LOCK_NOT_REFRESHED
+			return CONNECTION_PROBLEM
 		}
 
 		var s string

@@ -13,10 +13,8 @@ const (
 	//Max number or ms for processing message
 	MAX_RAND_PROCESS_TIME = 1000
 
-	//Command for stoping workers
-	CTRL_STOP = iota
-
-	MODE_GENERATOR = iota
+	MODE_UNKNOWN = iota
+	MODE_GENERATOR
 	MODE_CONSUMER
 )
 
@@ -126,6 +124,9 @@ func (c *Consumer) Start() chan ProcessedMessage {
 
 //Stops all workers
 func (c *Consumer) Stop() {
+	if !c.IsActive() {
+		return
+	}
 	log.Println("stop: 1")
 	c.stop <- struct{}{}
 	log.Println("stop: 2")
@@ -151,6 +152,9 @@ func (c *Consumer) RunWorker(wid int) {
 }
 
 func (c *Consumer) Close() {
+	if !c.IsActive() {
+		return
+	}
 	close(c.bad)
 	close(c.in)
 	close(c.out)
