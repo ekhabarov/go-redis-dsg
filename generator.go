@@ -22,6 +22,7 @@ const (
 	//Lock exists, but belongs to another generator
 	LOCK_NOT_REFRESHED
 
+	//Unable to connect to redis
 	CONNECTION_PROBLEM
 )
 
@@ -72,14 +73,12 @@ func (g *Generator) RefreshLock() byte {
 	_, err := pc.Do("WATCH", LOCK_NAME)
 	if err != nil {
 		log.Println("refreshlock: unable to execute WATCH:", err)
-		//return LOCK_NOT_REFRESHED
 		return CONNECTION_PROBLEM
 	}
 
 	cg, err := pc.Do("GET", LOCK_NAME)
 	if err != nil {
 		log.Println("refreshlock: unable to execute GET:", err)
-		//return LOCK_NOT_REFRESHED
 		return CONNECTION_PROBLEM
 	}
 
@@ -92,7 +91,6 @@ func (g *Generator) RefreshLock() byte {
 		lock, err := redis.Values(pc.Do("EXEC"))
 		if err != nil {
 			log.Println("refreshlock: unable to execute EXEC:", err)
-			//return LOCK_NOT_REFRESHED
 			return CONNECTION_PROBLEM
 		}
 
@@ -104,12 +102,11 @@ func (g *Generator) RefreshLock() byte {
 		} else {
 			return LOCK_NOT_REFRESHED
 		}
-
 	} else {
 		_, err := pc.Do("UNWATCH")
 		if err != nil {
 			log.Println("refreshlock: unable to execute UNWATCH:", err)
-			return LOCK_OTHER_EXISTS
+			return CONNECTION_PROBLEM
 		}
 	}
 	return LOCK_NOT_REFRESHED
@@ -135,7 +132,6 @@ func (g *Generator) Start() {
 		g.isActive = false
 	}(g)
 
-	fmt.Println("Interval:", g.interval)
 	ticker := time.NewTicker(time.Millisecond * time.Duration(g.interval))
 
 	log.Printf("Generator started (name: %s).\n", g.name)
