@@ -130,6 +130,7 @@ func (g *Generator) Start() {
 		g.isActive = false
 	}(g)
 
+	fmt.Println("Interval:", g.interval)
 	ticker := time.NewTicker(time.Millisecond * time.Duration(g.interval))
 
 	log.Printf("Generator started (name: %s).\n", g.name)
@@ -143,6 +144,7 @@ func (g *Generator) Start() {
 				fmt.Printf("+")
 				i = 0
 			}
+			fmt.Printf(".")
 			if _, err := pc.Do("LPUSH", g.queue, g.Message()); err != nil {
 				log.Println("messages: unable to push to redis:", err)
 				return

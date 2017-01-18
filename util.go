@@ -30,16 +30,15 @@ func prob() bool {
 }
 
 func Mode(g *Generator, c *Consumer) byte {
-	if c.in != nil {
-		return MODE_CONSUMER
-	} else {
+	if g.IsActive() {
 		return MODE_GENERATOR
+	} else {
+		return MODE_CONSUMER
 	}
 }
 
 //Pinger
-func StartPing(g *Generator, c *Consumer) {
-
+func StartPing(g *Generator, c *Consumer, p *chan ProcessedMessage) {
 	ticker := time.NewTicker(time.Second * time.Duration(g.pingInterval))
 
 	for range ticker.C {
@@ -51,7 +50,7 @@ func StartPing(g *Generator, c *Consumer) {
 				if g.RefreshLock() == LOCK_NOT_REFRESHED {
 					g.Stop()
 					fmt.Printf("Switching to consumer")
-					go c.Start()
+					*p = c.Start()
 				}
 			}
 		case MODE_CONSUMER:

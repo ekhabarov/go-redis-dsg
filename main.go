@@ -47,7 +47,7 @@ func main() {
 		processed = c.Start()
 	}
 
-	//go StartPing(g, c)
+	go StartPing(g, c, &processed)
 	go bbeye.Run("127.0.0.1:" + os.Getenv("MPORT"))
 
 	//Exit timeout
@@ -56,36 +56,38 @@ func main() {
 		d <- struct{}{}
 	}(done)
 
-	//go func(g *Generator) {
-	//for {
-	//select {
-	//case <-time.After(time.Second * 5):
-	//if g.IsActive() {
-	//log.Println("Generator off")
-	//g.Stop()
-	//} else {
-	//log.Println("Generator on")
-	//go g.Start()
-	//}
-	//}
-	//}
-	//}(g)
-
-	go func(c *Consumer) {
-		for {
-			select {
-			case <-time.After(time.Second * 5):
-				if c.IsActive() {
-					log.Println("Consumer off.")
-					c.Stop()
-				} else {
-					log.Println("Consumer on")
-					processed = c.Start()
+	/*
+		go func(g *Generator) {
+			for {
+				select {
+				case <-time.After(time.Second * 5):
+					if g.IsActive() {
+						log.Println("Generator off")
+						g.Stop()
+					} else {
+						log.Println("Generator on")
+						go g.Start()
+					}
 				}
 			}
-		}
-	}(c)
-
+		}(g)
+	*/
+	/*
+		go func(c *Consumer) {
+			for {
+				select {
+				case <-time.After(time.Second * 5):
+					if c.IsActive() {
+						log.Println("Consumer off.")
+						c.Stop()
+					} else {
+						log.Println("Consumer on")
+						processed = c.Start()
+					}
+				}
+			}
+		}(c)
+	*/
 	for {
 		select {
 		case <-processed:
