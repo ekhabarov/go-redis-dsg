@@ -35,6 +35,7 @@ GENERATOR_INTERVAL | integer | 500 | Number of milliseconds between new messages
 REDIS_URL | string | '127.0.0.1:6379' | Redis address.
 REDIS_QUEUE | string | 'a' | Redis list name which contains generated messages.
 REDIS_ERROR_QUEUE | string | 'errors' | Redis list name with processes but invalid messages. 
+REDIS_POOL_SIZE | int | 100 | Maximum number of connections to Redis
 CONSUMER_MAX_GOROUTINES | integer | 10000 | Maximum number of goroutines using for processing messages.
 
 ### How it works
@@ -46,7 +47,7 @@ provided by `REDIS_QUEUE` variable,  with `LPUSH` command, every
 `GENERATOR_INTERVAL` milliseconds. Generated message is just string of format 
 `uuid + " " + timstamp`.
 
-Only one generator can work at moment (by default).
+Only one generator can work at moment.
 
 Generator could be stopped without any preparation.
 
