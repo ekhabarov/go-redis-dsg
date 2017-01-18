@@ -39,14 +39,15 @@ func main() {
 	c := NewConsumer(redisPool, cfg.redis.queue, cfg.redis.errQueue, cfg.consumer.maxGoroutines)
 	g := NewGen(redisPool, cfg.redis.queue, cfg.generator.interval, cfg.generator.pingInterval)
 
+	var processed chan ProcessedMessage
+
 	if g.AcquireLock() {
 		go g.Start()
 	} else {
-		go c.Wait4Errors()
-		go c.Start()
+		processed = c.Start()
 	}
 
-	go StartPing(g, c)
+	//go StartPing(g, c)
 	go bbeye.Run("127.0.0.1:" + os.Getenv("MPORT"))
 
 	//Exit timeout
@@ -55,9 +56,39 @@ func main() {
 		d <- struct{}{}
 	}(done)
 
+	//go func(g *Generator) {
+	//for {
+	//select {
+	//case <-time.After(time.Second * 5):
+	//if g.IsActive() {
+	//log.Println("Generator off")
+	//g.Stop()
+	//} else {
+	//log.Println("Generator on")
+	//go g.Start()
+	//}
+	//}
+	//}
+	//}(g)
+
+	go func(c *Consumer) {
+		for {
+			select {
+			case <-time.After(time.Second * 5):
+				if c.IsActive() {
+					log.Println("Consumer off.")
+					c.Stop()
+				} else {
+					log.Println("Consumer on")
+					processed = c.Start()
+				}
+			}
+		}
+	}(c)
+
 	for {
 		select {
-		case <-c.out:
+		case <-processed:
 		case <-done:
 			log.Println("Done.")
 			return

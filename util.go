@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"runtime"
+	"strings"
 	"time"
-
-	"github.com/garyburd/redigo/redis"
 )
 
 //Call panic if err is not nil
@@ -18,27 +16,9 @@ func PanicIf(err error) {
 }
 
 //Prints error to stdout if err is not nil
-func LogIf(err error) {
+func LogIf(err error, v ...string) {
 	if err != nil {
-		log.Println(err)
-	}
-}
-
-//Prints memory consuming info
-func MemPrint() {
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-	fmt.Printf("Alloc: %d\t TotalAlloc: %d\t Head: %d\t HeapSys: %d\n", mem.Alloc, mem.TotalAlloc, mem.HeapAlloc, mem.HeapSys)
-}
-
-//Creates new redis.Pool
-func NewRedisPool(addr string, rp int) *redis.Pool {
-	return &redis.Pool{
-		MaxIdle:     3,
-		IdleTimeout: 240 * time.Second,
-		Dial:        func() (redis.Conn, error) { return redis.Dial("tcp", addr) },
-		MaxActive:   rp,
-		Wait:        true,
+		log.Println(strings.Join(v, ":"), err)
 	}
 }
 
@@ -47,4 +27,51 @@ func prob() bool {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	n := r.Intn(100)
 	return n <= 5
+}
+
+func Mode(g *Generator, c *Consumer) byte {
+	if c.in != nil {
+		return MODE_CONSUMER
+	} else {
+		return MODE_GENERATOR
+	}
+}
+
+//Pinger
+func StartPing(g *Generator, c *Consumer) {
+
+	ticker := time.NewTicker(time.Second * time.Duration(g.pingInterval))
+
+	for range ticker.C {
+		fmt.Println("ping")
+
+		switch Mode(g, c) {
+		case MODE_GENERATOR:
+			if !g.AcquireLock() {
+				if g.RefreshLock() == LOCK_NOT_REFRESHED {
+					g.Stop()
+					fmt.Printf("Switching to consumer")
+					go c.Start()
+				}
+			}
+		case MODE_CONSUMER:
+			if g.AcquireLock() {
+				fmt.Printf("Switching to generator")
+				c.Stop()
+				go g.Start()
+			}
+		default:
+			panic("unreachable mode")
+		}
+
+		//can be gen->cons->gen->cons transfer? yes
+
+		//if mode = consumer try to acquire lock
+		//	if true stop consumer, start generator
+
+		//if mode = generator try to acquire lock,
+		//	if false try to refresh lock
+		//	if false stop generator, run consumer
+
+	}
 }

@@ -10,7 +10,17 @@ import (
 )
 
 const (
+	//Key lock name.
 	LOCK_NAME = "lock:gen"
+
+	//Another generator is active
+	LOCK_OTHER_EXISTS = iota
+
+	//Lock have been successfully refreshed
+	LOCK_REFRESHED
+
+	//Lock exists, but belongs to another generator
+	LOCK_NOT_REFRESHED
 )
 
 type Generator struct {
@@ -19,6 +29,8 @@ type Generator struct {
 	name         string
 	interval     int
 	pingInterval int
+	stop         chan struct{}
+	isActive     bool
 }
 
 //Creates new Generator
@@ -29,10 +41,12 @@ func NewGen(p *redis.Pool, queue string, interval, pinterval int) *Generator {
 		interval:     interval,
 		pingInterval: pinterval,
 		name:         uuid.NewV4().String(),
+		stop:         make(chan struct{}),
 	}
 }
 
-//Tries to acquire new lock
+//Tries to acquire new lock. If there is no lock, that means there is no
+//active generator. Acquiring lock means cuurrent generator will be activated.
 func (g *Generator) AcquireLock() bool {
 	pc := g.pool.Get()
 	defer pc.Close()
@@ -40,37 +54,60 @@ func (g *Generator) AcquireLock() bool {
 	//Set lock expire time pingInterval+5 seconds.
 	//5 is a "magic number", time for network lag, etc.
 	lock, err := pc.Do("SET", LOCK_NAME, g.name, "EX", g.pingInterval+5, "NX")
-	LogIf(err)
+	if err != nil {
+		log.Println("acquirelock: unable to execute SET:", err)
+		return false
+	}
 
 	return lock == "OK"
 }
 
 //Refreshes it's own lock
-func (g *Generator) RefreshLock() bool {
+func (g *Generator) RefreshLock() byte {
 	pc := g.pool.Get()
 	defer pc.Close()
 
 	_, err := pc.Do("WATCH", LOCK_NAME)
-	PanicIf(err)
+	if err != nil {
+		log.Println("refreshlock: unable to execute WATCH:", err)
+		return LOCK_NOT_REFRESHED
+	}
 
 	cg, err := pc.Do("GET", LOCK_NAME)
-	PanicIf(err)
+	if err != nil {
+		log.Println("refreshlock: unable to execute GET:", err)
+		return LOCK_NOT_REFRESHED
+	}
 
 	cg, err = redis.String(cg, err)
-	PanicIf(err)
+	LogIf(err)
 
 	if cg == g.name {
 		pc.Send("MULTI")
 		pc.Send("SET", LOCK_NAME, g.name, "EX", g.pingInterval+5, "XX")
-		lock, err := pc.Do("EXEC")
-		PanicIf(err)
+		lock, err := redis.Values(pc.Do("EXEC"))
+		if err != nil {
+			log.Println("refreshlock: unable to execute EXEC:", err)
+			return LOCK_NOT_REFRESHED
+		}
 
-		return lock == "OK"
+		var s string
+		redis.Scan(lock, &s)
+
+		if s == "OK" {
+			return LOCK_REFRESHED
+		} else {
+			return LOCK_NOT_REFRESHED
+		}
+
 	} else {
 		_, err := pc.Do("UNWATCH")
-		PanicIf(err)
+		if err != nil {
+			log.Println("refreshlock: unable to execute UNWATCH:", err)
+			return LOCK_OTHER_EXISTS
+		}
 	}
-	return false
+	return LOCK_NOT_REFRESHED
 }
 
 //Generates random string
@@ -79,30 +116,47 @@ func (g *Generator) Message() string {
 }
 
 //Added data to redis list
-func (g *Generator) Run() {
+func (g *Generator) Start() {
+	if g.RefreshLock() == LOCK_OTHER_EXISTS {
+		log.Println("generator run: another generator in progress")
+		return
+	}
+
 	pc := g.pool.Get()
 	defer pc.Close()
+
+	defer func(g *Generator) {
+		log.Printf("Generator stopped (name: %s).\n", g.name)
+		g.isActive = false
+	}(g)
 
 	ticker := time.NewTicker(time.Millisecond * time.Duration(g.interval))
 
 	log.Printf("Generator started (name: %s).\n", g.name)
-
-	for range ticker.C {
-		pc.Do("LPUSH", g.queue, g.Message())
+	g.isActive = true
+	i := 0
+	for {
+		select {
+		case <-ticker.C:
+			i++
+			if i >= 1000 {
+				fmt.Printf("+")
+				i = 0
+			}
+			if _, err := pc.Do("LPUSH", g.queue, g.Message()); err != nil {
+				log.Println("messages: unable to push to redis:", err)
+				return
+			}
+		case <-g.stop:
+			return
+		}
 	}
 }
 
-//Pinger
-func (g *Generator) Pinger(c *Consumer) {
-	for {
-		select {
-		case <-time.After(time.Second * time.Duration(g.pingInterval)):
-			if g.AcquireLock() {
-				go g.Run()
-				c.Stop()
-			} else {
-				g.RefreshLock()
-			}
-		}
-	}
+func (g *Generator) Stop() {
+	g.stop <- struct{}{}
+}
+
+func (g *Generator) IsActive() bool {
+	return g.isActive
 }
