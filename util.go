@@ -66,7 +66,7 @@ func StartPing(g *Generator, c *Consumer, p *chan ProcessedMessage) {
 				c.Stop()
 				go g.Start()
 			}
-		default:
+		case MODE_UNKNOWN:
 			if g.AcquireLock() {
 				go g.Start()
 			} else {

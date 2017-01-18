@@ -117,6 +117,12 @@ func (c *Consumer) Start() chan ProcessedMessage {
 	in := make(chan Message)
 	out := make(chan ProcessedMessage)
 	bad := make(chan BadMessage)
+
+	if !c.Ping() {
+		close(out)
+		return out
+	}
+
 	go c.ProcessErrors(bad)
 	go c.Process(in, out)
 	return out
@@ -178,4 +184,16 @@ func (c *Consumer) ProcessErrors(bad chan BadMessage) {
 
 func (c *Consumer) IsActive() bool {
 	return c.isActive
+}
+
+func (c *Consumer) Ping() bool {
+	pc := c.pool.Get()
+	defer pc.Close()
+
+	p, err := pc.Do("PING")
+	if err != nil {
+		return false
+	}
+	fmt.Println("PING:", p)
+	return p == "PONG"
 }
