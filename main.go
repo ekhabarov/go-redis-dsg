@@ -12,15 +12,6 @@ import (
 	"github.com/ekhabarov/bbeye"
 )
 
-// TODO:
-// 1. Rebuild generator determination mechanism
-// 2. One connection to Redis on error
-// 3. Remove MODE param. Determine role by generataor existing
-const (
-	MODE_GENERATOR = "generator"
-	MODE_CONSUMER  = "consumer"
-)
-
 func main() {
 	runtime.GOMAXPROCS(1)
 	//runtime.GOMAXPROCS(runtime.NumCPU())
@@ -49,13 +40,14 @@ func main() {
 	g := NewGen(redisPool, cfg.redis.queue, cfg.generator.interval, cfg.generator.pingInterval)
 
 	if g.AcquireLock() {
-		go g.Run()
+		go g.Start()
 	} else {
-		go bbeye.Run("127.0.0.1:" + os.Getenv("MPORT"))
 		go c.Wait4Errors()
-		go c.Wait4Messages()
+		go c.Start()
 	}
-	go g.Pinger(c)
+
+	go StartPing(g, c)
+	go bbeye.Run("127.0.0.1:" + os.Getenv("MPORT"))
 
 	//Exit timeout
 	go func(d chan<- struct{}) {
@@ -69,6 +61,7 @@ func main() {
 		case <-done:
 			log.Println("Done.")
 			return
+
 		}
 	}
 }
