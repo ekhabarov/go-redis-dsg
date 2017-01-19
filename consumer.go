@@ -118,6 +118,8 @@ func (c *Consumer) Start() {
 
 	if !c.Ping() {
 		close(out)
+		c.out = out
+		return
 	}
 
 	go c.ProcessErrors(bad)
