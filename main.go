@@ -54,11 +54,9 @@ func main() {
 		d <- struct{}{}
 	}(done)
 
-	for {
-		select {
-		case <-done:
-			log.Println("Done.")
-			return
-		}
+	select {
+	case <-done:
+		log.Println("Done.")
+		return
 	}
 }
