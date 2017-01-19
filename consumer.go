@@ -81,13 +81,15 @@ func (c *Consumer) Process(in chan Message, out chan ProcessedMessage) {
 	defer pc.Close()
 	defer func(c *Consumer) {
 		log.Printf("%d workers stopped.\n", c.maxGoroutines)
-		c.isActive = false
 	}(c)
 	defer c.Close()
 
 	for {
 		select {
 		case <-c.stop:
+			//dirty hack, should wait before closing c.out
+			//while switching from consumer to generator mode
+			time.Sleep(time.Second)
 			c.stop <- struct{}{}
 			return
 		default:
@@ -156,6 +158,7 @@ func (c *Consumer) Close() {
 	close(c.bad)
 	close(c.in)
 	close(c.out)
+	c.isActive = false
 }
 
 //Get bad messages from chan and call PushError
