@@ -52,7 +52,7 @@ func Mode(g *Generator, c *Consumer) byte {
 //if mode = unknown try to acquire lock
 //	if true start generator
 //	if false start consumer
-func StartPing(g *Generator, c *Consumer, p *chan ProcessedMessage) {
+func StartPing(g *Generator, c *Consumer) {
 	ticker := time.NewTicker(time.Second * time.Duration(g.pingInterval))
 
 	for range ticker.C {
@@ -62,7 +62,7 @@ func StartPing(g *Generator, c *Consumer, p *chan ProcessedMessage) {
 				switch g.RefreshLock() {
 				case LOCK_NOT_REFRESHED:
 					g.Stop()
-					*p = c.Start()
+					c.Start()
 				}
 			}
 		case MODE_CONSUMER:
@@ -74,7 +74,7 @@ func StartPing(g *Generator, c *Consumer, p *chan ProcessedMessage) {
 			if g.AcquireLock() {
 				go g.Start()
 			} else {
-				*p = c.Start()
+				c.Start()
 			}
 		}
 	}

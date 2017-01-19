@@ -111,19 +111,25 @@ func (c *Consumer) Process(in chan Message, out chan ProcessedMessage) {
 }
 
 //Runs message consuming
-func (c *Consumer) Start() chan ProcessedMessage {
+func (c *Consumer) Start() {
 	in := make(chan Message)
 	out := make(chan ProcessedMessage)
 	bad := make(chan BadMessage)
 
 	if !c.Ping() {
 		close(out)
-		return out
 	}
 
 	go c.ProcessErrors(bad)
 	go c.Process(in, out)
-	return out
+
+	go func(cc *Consumer) {
+		for {
+			select {
+			case <-cc.out:
+			}
+		}
+	}(c)
 }
 
 //Stops all workers
