@@ -1,5 +1,7 @@
 ## Distributed message consumer and generator for Redis.
 
+![schema](./schema.png)
+
 ### Dependencies
 
 ```
